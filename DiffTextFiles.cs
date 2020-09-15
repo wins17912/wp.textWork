@@ -13,18 +13,20 @@ namespace wp.dll.lib32.textWork
         private FileInfo      FileB              { get; }
         private DirectoryInfo ResultDirectory    { get; }
         private Encoding      SourceFileEncoding { get; }
+        private int Depth { get; }
 
         private readonly DirectoryInfo _tempDirectoryA;
         private readonly DirectoryInfo _tempDirectoryB;
 
         public event DifferenceEventHandler NewEvent;
 
-        public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo resultDirectory, Encoding sourceFileEncoding = null)
+        public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo resultDirectory, Encoding sourceFileEncoding = null, int depth = 6)
         {
             FileA              = fileA;
             FileB              = fileB;
             ResultDirectory    = resultDirectory;
             SourceFileEncoding = sourceFileEncoding ?? Encoding.UTF8;
+            Depth = depth;
 
             var tempDirectoryName = $"#{DateTime.Now.Ticks.ToString().Substring(0, 8)}";
 
@@ -63,21 +65,21 @@ namespace wp.dll.lib32.textWork
             FileB.CopyTo($"{_tempDirectoryB.FullName}\\{FileB.Name}", true);
             OnNewEvent($"FileB [{FileB.Name}] copied to tempDirectoryB");
 
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 1);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 2);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 3);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 4);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 5);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 6);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 8);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 10);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 14);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 18);
-            GetFilesDifference(_tempDirectoryA, _tempDirectoryB, 22);
+            for (int i = 1; i < Depth; i++)
+            {
+                if (i > 10) { i++; }
+                if (i > 20) { i++; }
+                if (i > 30) { i++; }
+                if (i > 40) { i++; }
+
+                GetFilesDifference(_tempDirectoryA, _tempDirectoryB, i);
+            }
+
 
             OnNewEvent("Merge results \"in A not B\"");
-            using (var streamWriter = new StreamWriter($"{ResultDirectory.FullName}\\AnotB.txt", true, SourceFileEncoding))
+            using (var streamWriter = new StreamWriter($"{ResultDirectory.FullName}\\result.txt", true, SourceFileEncoding))
             {
+                streamWriter.WriteLine("in A not B:");
                 foreach (var file in _tempDirectoryA.GetFiles())
                 {
                     OnNewEvent($"=>{file.Name}");
@@ -96,12 +98,8 @@ namespace wp.dll.lib32.textWork
                     }
                 }
 
-                streamWriter.Close();
-            }
-
-            OnNewEvent("Merge results \"in B not A\"");
-            using (var streamWriter = new StreamWriter($"{ResultDirectory.FullName}\\BnotA.txt", true, SourceFileEncoding))
-            {
+                OnNewEvent("Merge results \"in B not A\"");
+                streamWriter.WriteLine("\nin A not B:");
                 foreach (var file in _tempDirectoryB.GetFiles())
                 {
                     OnNewEvent($"=>{file.Name}");
