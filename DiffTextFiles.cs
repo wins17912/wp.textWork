@@ -9,24 +9,25 @@ namespace wp.dll.lib32.textWork
 {
 	public sealed class DiffTextFiles
 	{
-		private FileInfo      FileA         { get; }
-		private FileInfo      FileB         { get; }
-		private Encoding      FileEncoding  { get; }
-		private int           Depth         { get; }
+		private FileInfo FileA        { get; }
+		private FileInfo FileB        { get; }
+		private Encoding FileEncoding { get; }
 
+		private          int           Depth;
+		private          bool          DirsEmpty;
 		private readonly DirectoryInfo TempDirectory;
 		private readonly DirectoryInfo TempDirectoryA;
 		private readonly DirectoryInfo TempDirectoryB;
 
 		public event DifferenceEventHandler NewEvent;
 
-		public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo tempDirectory = null, Encoding fileEncoding = null, int depth = 6)
+		public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo tempDirectory = null, Encoding fileEncoding = null)
 		{
 			FileA         = fileA;
 			FileB         = fileB;
 			TempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
 			FileEncoding  = fileEncoding  ?? Encoding.UTF8;
-			Depth         = depth;
+			Depth         = int.MaxValue;
 
 			OnNewEvent($"TempDirectory={TempDirectory.FullName}");
 
@@ -69,7 +70,12 @@ namespace wp.dll.lib32.textWork
 
 			for (var i = 1; i < Depth; i++)
 			{
+				Depth = int.MaxValue;
 				GetFilesDifference(TempDirectoryA, TempDirectoryB, i);
+				if (DirsEmpty)
+				{
+					break;
+				}
 			}
 
 			var resultList = new List<DiffResult>();
@@ -114,7 +120,7 @@ namespace wp.dll.lib32.textWork
 			}
 		}
 
-		private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth, bool withRevise = true)
+		private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
 		{
 			OnNewEvent($"Split files in tempDirectoryA");
 			foreach (var file in dir0.GetFiles())
@@ -128,10 +134,7 @@ namespace wp.dll.lib32.textWork
 				Split_Work(file, dir1, depth);
 			}
 
-			if (withRevise)
-			{
-				Revize(dir0, dir1);
-			}
+			Revize(dir0, dir1);
 		}
 
 		private void Revize(DirectoryInfo dir0, DirectoryInfo dir1)
@@ -140,38 +143,40 @@ namespace wp.dll.lib32.textWork
 			var files1 = dir1.GetFiles();
 
 			OnNewEvent($"Files count in temp directories: A={files0.Length}; B={files1.Length}");
+			DirsEmpty = files0.Length == 0 && files1.Length == 0;
 
-			foreach (var fileInfo0 in files0)
+			if (!DirsEmpty)
 			{
-				OnNewEvent($"Search second file for [{fileInfo0.Name}]");
-				var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
-				if (fileInfo1 != null)
+				foreach (var fileInfo0 in files0)
 				{
-					var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
-					var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
-					OnNewEvent($"hashA=[{hashA}]");
-					OnNewEvent($"hashB=[{hashB}]");
-					if (hashA == hashB)
+					OnNewEvent($"Search second file for [{fileInfo0.Name}]");
+					var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
+					if (fileInfo1 != null)
 					{
-						fileInfo0.Delete();
-						fileInfo1.Delete();
-						OnNewEvent($"=> Files equlas, deleted");
+						var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
+						var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
+						if (hashA == hashB)
+						{
+							fileInfo0.Delete();
+							fileInfo1.Delete();
+							OnNewEvent($"=> Files equlas, deleted");
+						}
+						else
+						{
+							OnNewEvent($"=> Files not equal, skip");
+						}
 					}
 					else
 					{
-						OnNewEvent($"=> Files not equal, skip");
+						OnNewEvent($"=X Not found");
 					}
-				}
-				else
-				{
-					OnNewEvent($"=X Not found");
 				}
 			}
 		}
 
 		private void Split_Work(FileSystemInfo fileInfo, FileSystemInfo directory, int depth)
 		{
-			OnNewEvent($"Split file [{fileInfo.Name}][{depth}]");
+			OnNewEvent($"* Split file [{fileInfo.Name}][{depth}]");
 
 			var sws = new Dictionary<string, StreamWriter>();
 
@@ -182,7 +187,12 @@ namespace wp.dll.lib32.textWork
 				{
 					if (line.Length != 0)
 					{
-						var fChar = line.Substring(0, depth).Replace(" ", "_").Replace("\t", "_");
+						if (line.Length < Depth)
+						{
+							Depth = line.Length;
+						}
+
+						var fChar = line.Substring(0, depth).Replace(" ", "_").ToFileName("_");
 
 						var sw = sws.FirstOrDefault(c => c.Key == fChar).Value;
 						if (sw == null)
@@ -229,5 +239,22 @@ namespace wp.dll.lib32.textWork
 	internal static class Extentions
 	{
 		internal static string GetHash(this string str, Encoding sourceFileEncoding) => new MD5CryptoServiceProvider().ComputeHash(sourceFileEncoding.GetBytes(str)).Aggregate(string.Empty, (current, b) => current + b.ToString("x2"));
+
+		internal static string ToFileName(this string input, string replace = null) =>
+				input
+						.Replace("\\", replace   ?? string.Empty)
+						.Replace("/", replace    ?? string.Empty)
+						.Replace(":", replace    ?? string.Empty)
+						.Replace("*", replace    ?? string.Empty)
+						.Replace("?", replace    ?? string.Empty)
+						.Replace("<", replace    ?? string.Empty)
+						.Replace(">", replace    ?? string.Empty)
+						.Replace("|", replace    ?? string.Empty)
+						.Replace(".", replace    ?? string.Empty)
+						.Replace("\r\n", replace ?? " ")
+						.Replace("\r", replace   ?? " ")
+						.Replace("\n", replace   ?? " ")
+						.Replace("\t", replace   ?? " ")
+						.Trim();
 	}
 }
