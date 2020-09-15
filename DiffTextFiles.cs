@@ -9,95 +9,103 @@ namespace wp.dll.lib32.textWork
 {
 	public sealed class DiffTextFiles
 	{
-		private FileInfo      FileA              { get; }
-		private FileInfo      FileB              { get; }
-		private DirectoryInfo ResultDirectory    { get; }
-		private Encoding      SourceFileEncoding { get; }
-		private int           Depth              { get; }
+		private FileInfo      FileA         { get; }
+		private FileInfo      FileB         { get; }
+		private Encoding      FileEncoding  { get; }
+		private int           Depth         { get; }
 
-		private readonly DirectoryInfo _tempDirectoryA;
-		private readonly DirectoryInfo _tempDirectoryB;
+		private readonly DirectoryInfo TempDirectory;
+		private readonly DirectoryInfo TempDirectoryA;
+		private readonly DirectoryInfo TempDirectoryB;
 
 		public event DifferenceEventHandler NewEvent;
 
-		public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo resultDirectory, Encoding sourceFileEncoding = null, int depth = 6)
+		public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo tempDirectory = null, Encoding fileEncoding = null, int depth = 6)
 		{
-			FileA              = fileA;
-			FileB              = fileB;
-			ResultDirectory    = resultDirectory;
-			SourceFileEncoding = sourceFileEncoding ?? Encoding.UTF8;
-			Depth              = depth;
+			FileA         = fileA;
+			FileB         = fileB;
+			TempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
+			FileEncoding  = fileEncoding  ?? Encoding.UTF8;
+			Depth         = depth;
 
-			var tempDirectoryName = $"#{DateTime.Now.Ticks.ToString().Substring(0, 8)}";
+			OnNewEvent($"TempDirectory={TempDirectory.FullName}");
 
-			_tempDirectoryA = new DirectoryInfo($"{ResultDirectory.FullName}\\A{tempDirectoryName}");
-			OnNewEvent($"tempDirectoryA={_tempDirectoryA.FullName}");
+			var tempDirectoryName = DateTime.Now.Ticks.ToString();
 
-			_tempDirectoryB = new DirectoryInfo($"{ResultDirectory.FullName}\\B{tempDirectoryName}");
-			OnNewEvent($"tempDirectoryB={_tempDirectoryB.FullName}");
+			TempDirectoryA = new DirectoryInfo($"{TempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#0");
+			OnNewEvent($"TempDirectoryA={TempDirectoryA.FullName}");
+
+			TempDirectoryB = new DirectoryInfo($"{TempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#1");
+			OnNewEvent($"TempDirectoryB={TempDirectoryB.FullName}");
 		}
 
-		public Dictionary<DiffFile, string> Work()
+		public IEnumerable<DiffResult> Work()
 		{
 			OnNewEvent("Work started");
 
-			if (!ResultDirectory.Exists)
+			if (!TempDirectory.Exists)
 			{
-				ResultDirectory.Create();
-				OnNewEvent("Result directory created");
+				TempDirectory.Create();
+				OnNewEvent("Temp directory created");
 			}
 
-			if (!_tempDirectoryA.Exists)
+			if (!TempDirectoryA.Exists)
 			{
-				_tempDirectoryA.Create();
-				OnNewEvent("tempDirectoryA directory created");
+				TempDirectoryA.Create();
+				OnNewEvent("TempDirectoryA directory created");
 			}
 
-			if (!_tempDirectoryB.Exists)
+			if (!TempDirectoryB.Exists)
 			{
-				_tempDirectoryB.Create();
-				OnNewEvent("tempDirectoryB directory created");
+				TempDirectoryB.Create();
+				OnNewEvent("TempDirectoryB directory created");
 			}
 
-			FileA.CopyTo($"{_tempDirectoryA.FullName}\\{FileA.Name}", true);
-			OnNewEvent($"FileA [{FileA.Name}] copied to tempDirectoryA");
+			FileA.CopyTo($"{TempDirectoryA.FullName}\\{FileA.Name}", true);
+			OnNewEvent($"FileA [{FileA.Name}] copied to TempDirectoryA");
 
-			FileB.CopyTo($"{_tempDirectoryB.FullName}\\{FileB.Name}", true);
-			OnNewEvent($"FileB [{FileB.Name}] copied to tempDirectoryB");
+			FileB.CopyTo($"{TempDirectoryB.FullName}\\{FileB.Name}", true);
+			OnNewEvent($"FileB [{FileB.Name}] copied to TempDirectoryB");
 
 			for (var i = 1; i < Depth; i++)
 			{
-				GetFilesDifference(_tempDirectoryA, _tempDirectoryB, i);
+				GetFilesDifference(TempDirectoryA, TempDirectoryB, i);
 			}
 
-			var resultDictionary = new Dictionary<DiffFile, string>();
+			var resultList = new List<DiffResult>();
 
 			OnNewEvent("Merge results \"in A not B\"");
-			GetResultList(_tempDirectoryA, DiffFile.A, ref resultDictionary);
+			GetResultList(TempDirectoryA, DiffFile.A, ref resultList);
 
 			OnNewEvent("Merge results \"in B not A\"");
-			GetResultList(_tempDirectoryB, DiffFile.B, ref resultDictionary);
+			GetResultList(TempDirectoryB, DiffFile.B, ref resultList);
 
-			_tempDirectoryA.Delete(true);
-			OnNewEvent("tempDirectoryA directory deleted");
-			_tempDirectoryB.Delete(true);
-			OnNewEvent("tempDirectoryB directory deleted");
+			TempDirectoryA.Delete(true);
+			OnNewEvent("TempDirectoryA directory deleted");
+			TempDirectoryB.Delete(true);
+			OnNewEvent("TempDirectoryB directory deleted");
 
-			return resultDictionary;
+			if (TempDirectory.FullName != Environment.GetFolderPath(Environment.SpecialFolder.Templates))
+			{
+				TempDirectory.Delete(true);
+				OnNewEvent("TempDirectory directory deleted");
+			}
+
+			return resultList;
 		}
 
-		private void GetResultList(DirectoryInfo directoryInfo, DiffFile diffFile, ref Dictionary<DiffFile, string> dictionary)
+		private void GetResultList(DirectoryInfo directoryInfo, DiffFile diffFile, ref List<DiffResult> list)
 		{
 			foreach (var file in directoryInfo.GetFiles())
 			{
-				using (var streamReader = new StreamReader(file.FullName, SourceFileEncoding))
+				using (var streamReader = new StreamReader(file.FullName, FileEncoding))
 				{
 					string line;
 					while ((line = streamReader.ReadLine()) != null)
 					{
 						if (line.Length != 0)
 						{
-							dictionary.Add(diffFile, line);
+							list.Add(new DiffResult(diffFile, line));
 						}
 					}
 
@@ -139,10 +147,10 @@ namespace wp.dll.lib32.textWork
 				var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
 				if (fileInfo1 != null)
 				{
-					OnNewEvent($"=> Finded");
-					var hashA = File.ReadAllText(fileInfo0.FullName, SourceFileEncoding).GetHash(SourceFileEncoding);
-					var hashB = File.ReadAllText(fileInfo1.FullName, SourceFileEncoding).GetHash(SourceFileEncoding);
-					OnNewEvent($"hash: A=[{hashA}]; B=[{hashB}]");
+					var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
+					var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
+					OnNewEvent($"hashA=[{hashA}]");
+					OnNewEvent($"hashB=[{hashB}]");
 					if (hashA == hashB)
 					{
 						fileInfo0.Delete();
@@ -151,7 +159,7 @@ namespace wp.dll.lib32.textWork
 					}
 					else
 					{
-						OnNewEvent($"=> Files not equal? skip");
+						OnNewEvent($"=> Files not equal, skip");
 					}
 				}
 				else
@@ -161,13 +169,13 @@ namespace wp.dll.lib32.textWork
 			}
 		}
 
-		private void Split_Work(FileInfo fileInfo, DirectoryInfo directory, int depth)
+		private void Split_Work(FileSystemInfo fileInfo, FileSystemInfo directory, int depth)
 		{
-			OnNewEvent($"Split file [{fileInfo.Name}][{depth} symbols]");
+			OnNewEvent($"Split file [{fileInfo.Name}][{depth}]");
 
 			var sws = new Dictionary<string, StreamWriter>();
 
-			using (var sr = new StreamReader(fileInfo.FullName, SourceFileEncoding))
+			using (var sr = new StreamReader(fileInfo.FullName, FileEncoding))
 			{
 				string line;
 				while ((line = sr.ReadLine()) != null)
@@ -179,7 +187,7 @@ namespace wp.dll.lib32.textWork
 						var sw = sws.FirstOrDefault(c => c.Key == fChar).Value;
 						if (sw == null)
 						{
-							sw = new StreamWriter($"{directory.FullName}\\{fChar}", true, SourceFileEncoding);
+							sw = new StreamWriter($"{directory.FullName}\\{fChar}", true, FileEncoding);
 							sws.Add(fChar, sw);
 						}
 
@@ -198,6 +206,18 @@ namespace wp.dll.lib32.textWork
 		}
 
 		private void OnNewEvent(string info) => NewEvent?.Invoke(info);
+	}
+
+	public struct DiffResult
+	{
+		public DiffFile DiffFile { get; }
+		public string   Line     { get; }
+
+		public DiffResult(DiffFile diffFile, string line)
+		{
+			DiffFile = diffFile;
+			Line     = line;
+		}
 	}
 
 	public enum DiffFile
