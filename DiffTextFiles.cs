@@ -15,6 +15,7 @@ namespace wp.dll.lib32.textWork
 
 		private          int           Depth;
 		private          bool          DirsEmpty;
+
 		private readonly DirectoryInfo TempDirectory;
 		private readonly DirectoryInfo TempDirectoryA;
 		private readonly DirectoryInfo TempDirectoryB;
@@ -122,13 +123,13 @@ namespace wp.dll.lib32.textWork
 
 		private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
 		{
-			OnNewEvent($"Split files in tempDirectoryA");
+			OnNewEvent("Split files in tempDirectoryA");
 			foreach (var file in dir0.GetFiles())
 			{
 				Split_Work(file, dir0, depth);
 			}
 
-			OnNewEvent($"Split files in tempDirectoryB");
+			OnNewEvent("Split files in tempDirectoryB");
 			foreach (var file in dir1.GetFiles())
 			{
 				Split_Work(file, dir1, depth);
@@ -159,16 +160,16 @@ namespace wp.dll.lib32.textWork
 						{
 							fileInfo0.Delete();
 							fileInfo1.Delete();
-							OnNewEvent($"=> Files equlas, deleted");
+							OnNewEvent("=> Files equlas, deleted");
 						}
 						else
 						{
-							OnNewEvent($"=> Files not equal, skip");
+							OnNewEvent("=> Files not equal, skip");
 						}
 					}
 					else
 					{
-						OnNewEvent($"=X Not found");
+						OnNewEvent("=X Not found");
 					}
 				}
 			}
