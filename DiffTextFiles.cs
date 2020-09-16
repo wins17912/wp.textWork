@@ -12,13 +12,14 @@ namespace wp.dll.lib32.textWork
 		private FileInfo FileA        { get; }
 		private FileInfo FileB        { get; }
 		private Encoding FileEncoding { get; }
+        public decimal FileALinesCount { get; private set; }
+        public decimal FileBLinesCount { get; private set; }
 
-		private          int           Depth;
-		private          bool          DirsEmpty;
+        private          int           _depth;
 
-		private readonly DirectoryInfo TempDirectory;
-		private readonly DirectoryInfo TempDirectoryA;
-		private readonly DirectoryInfo TempDirectoryB;
+		private readonly DirectoryInfo _tempDirectory;
+		private readonly DirectoryInfo _tempDirectoryA;
+		private readonly DirectoryInfo _tempDirectoryB;
 
 		public event DifferenceEventHandler NewEvent;
 
@@ -26,54 +27,54 @@ namespace wp.dll.lib32.textWork
 		{
 			FileA         = fileA;
 			FileB         = fileB;
-			TempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
+			_tempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
 			FileEncoding  = fileEncoding  ?? Encoding.UTF8;
-			Depth         = int.MaxValue;
+			_depth         = int.MaxValue;
 
-			OnNewEvent($"TempDirectory={TempDirectory.FullName}");
+			OnNewEvent($"TempDirectory={_tempDirectory.FullName}");
 
 			var tempDirectoryName = DateTime.Now.Ticks.ToString();
 
-			TempDirectoryA = new DirectoryInfo($"{TempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#0");
-			OnNewEvent($"TempDirectoryA={TempDirectoryA.FullName}");
+			_tempDirectoryA = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#0");
+			OnNewEvent($"TempDirectoryA={_tempDirectoryA.FullName}");
 
-			TempDirectoryB = new DirectoryInfo($"{TempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#1");
-			OnNewEvent($"TempDirectoryB={TempDirectoryB.FullName}");
+			_tempDirectoryB = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#1");
+			OnNewEvent($"TempDirectoryB={_tempDirectoryB.FullName}");
 		}
 
 		public IEnumerable<DiffResult> Work()
 		{
 			OnNewEvent("Work started");
 
-			if (!TempDirectory.Exists)
+			if (!_tempDirectory.Exists)
 			{
-				TempDirectory.Create();
+				_tempDirectory.Create();
 				OnNewEvent("Temp directory created");
 			}
 
-			if (!TempDirectoryA.Exists)
+			if (!_tempDirectoryA.Exists)
 			{
-				TempDirectoryA.Create();
+				_tempDirectoryA.Create();
 				OnNewEvent("TempDirectoryA directory created");
 			}
 
-			if (!TempDirectoryB.Exists)
+			if (!_tempDirectoryB.Exists)
 			{
-				TempDirectoryB.Create();
+				_tempDirectoryB.Create();
 				OnNewEvent("TempDirectoryB directory created");
 			}
 
-			FileA.CopyTo($"{TempDirectoryA.FullName}\\{FileA.Name}", true);
+			FileA.CopyTo($"{_tempDirectoryA.FullName}\\{FileA.Name}", true);
 			OnNewEvent($"FileA [{FileA.Name}] copied to TempDirectoryA");
 
-			FileB.CopyTo($"{TempDirectoryB.FullName}\\{FileB.Name}", true);
+			FileB.CopyTo($"{_tempDirectoryB.FullName}\\{FileB.Name}", true);
 			OnNewEvent($"FileB [{FileB.Name}] copied to TempDirectoryB");
 
-			for (var i = 1; i < Depth; i++)
+			for (var i = 1; i < _depth; i++)
 			{
-				Depth = int.MaxValue;
-				GetFilesDifference(TempDirectoryA, TempDirectoryB, i);
-				if (DirsEmpty)
+				_depth = int.MaxValue;
+				GetFilesDifference(_tempDirectoryA, _tempDirectoryB, i);
+				if (_tempDirectoryA.GetFiles().Length == 0 && _tempDirectoryB.GetFiles().Length == 0)
 				{
 					break;
 				}
@@ -82,19 +83,19 @@ namespace wp.dll.lib32.textWork
 			var resultList = new List<DiffResult>();
 
 			OnNewEvent("Merge results \"in A not B\"");
-			GetResultList(TempDirectoryA, DiffFile.A, ref resultList);
+			GetResultList(_tempDirectoryA, DiffFile.A, ref resultList);
 
 			OnNewEvent("Merge results \"in B not A\"");
-			GetResultList(TempDirectoryB, DiffFile.B, ref resultList);
+			GetResultList(_tempDirectoryB, DiffFile.B, ref resultList);
 
-			TempDirectoryA.Delete(true);
+			_tempDirectoryA.Delete(true);
 			OnNewEvent("TempDirectoryA directory deleted");
-			TempDirectoryB.Delete(true);
+			_tempDirectoryB.Delete(true);
 			OnNewEvent("TempDirectoryB directory deleted");
 
-			if (TempDirectory.FullName != Environment.GetFolderPath(Environment.SpecialFolder.Templates))
+			if (_tempDirectory.FullName != Environment.GetFolderPath(Environment.SpecialFolder.Templates))
 			{
-				TempDirectory.Delete(true);
+				_tempDirectory.Delete(true);
 				OnNewEvent("TempDirectory directory deleted");
 			}
 
@@ -125,15 +126,17 @@ namespace wp.dll.lib32.textWork
 		{
 			OnNewEvent("Split files in tempDirectoryA");
 			foreach (var file in dir0.GetFiles())
-			{
-				Split_Work(file, dir0, depth);
-			}
+            {
+                Split_Work(file, dir0, depth, out decimal linesCount);
+                FileALinesCount = linesCount > FileALinesCount ? linesCount : FileALinesCount;
+            }
 
 			OnNewEvent("Split files in tempDirectoryB");
 			foreach (var file in dir1.GetFiles())
-			{
-				Split_Work(file, dir1, depth);
-			}
+            {
+                Split_Work(file, dir1, depth, out decimal linesCount);
+                FileBLinesCount = linesCount > FileBLinesCount ? linesCount : FileBLinesCount;
+            }
 
 			Revize(dir0, dir1);
 		}
@@ -144,9 +147,8 @@ namespace wp.dll.lib32.textWork
 			var files1 = dir1.GetFiles();
 
 			OnNewEvent($"Files count in temp directories: A={files0.Length}; B={files1.Length}");
-			DirsEmpty = files0.Length == 0 && files1.Length == 0;
 
-			if (!DirsEmpty)
+			if (files0.Length != 0 && files1.Length != 0)
 			{
 				foreach (var fileInfo0 in files0)
 				{
@@ -175,22 +177,24 @@ namespace wp.dll.lib32.textWork
 			}
 		}
 
-		private void Split_Work(FileSystemInfo fileInfo, FileSystemInfo directory, int depth)
+		private void Split_Work(FileSystemInfo fileInfo, FileSystemInfo directory, int depth, out decimal linesCount)
 		{
 			OnNewEvent($"* Split file [{fileInfo.Name}][{depth}]");
 
 			var sws = new Dictionary<string, StreamWriter>();
 
 			using (var sr = new StreamReader(fileInfo.FullName, FileEncoding))
-			{
-				string line;
+            {
+                linesCount = 0;
+                string line;
 				while ((line = sr.ReadLine()) != null)
 				{
 					if (line.Length != 0)
-					{
-						if (line.Length < Depth)
+                    {
+                        linesCount++;
+                        if (line.Length < _depth)
 						{
-							Depth = line.Length;
+							_depth = line.Length;
 						}
 
 						var fChar = line.Substring(0, depth).Replace(" ", "_").ToFileName("_");
