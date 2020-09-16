@@ -8,10 +8,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("wp.dll.lib32.textWork")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Wins Programs")]
 [assembly: AssemblyProduct("wp.dll.lib32.textWork")]
-[assembly: AssemblyCopyright("Copyright ©  2020")]
-[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCopyright("Голубцов А., Пермь, 2020")]
+[assembly: AssemblyTrademark("x86")]
 [assembly: AssemblyCulture("")]
 
 // Установка значения False для параметра ComVisible делает типы в этой сборке невидимыми
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // Можно задать все значения или принять номер сборки и номер редакции по умолчанию.
 // используя "*", как показано ниже:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.1")]
-[assembly: AssemblyFileVersion("0.1.1354.1505")]
+[assembly: AssemblyVersion("0.2")]
+[assembly: AssemblyFileVersion("0.2.1354.1506")]
