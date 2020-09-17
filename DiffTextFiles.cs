@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace wp.dll.lib32.textWork
@@ -181,7 +180,7 @@ namespace wp.dll.lib32.textWork
 		{
 			OnNewEvent($"* Split file [{fileInfo.Name}][{depth}]");
 
-			var sws = new Dictionary<string, StreamWriter>();
+			var streamWriters = new Dictionary<string, StreamWriter>();
 
 			using (var sr = new StreamReader(fileInfo.FullName, FileEncoding))
             {
@@ -199,11 +198,11 @@ namespace wp.dll.lib32.textWork
 
 						var fChar = line.Substring(0, depth).Replace(" ", "_").ToFileName("_");
 
-						var sw = sws.FirstOrDefault(c => c.Key == fChar).Value;
+						var sw = streamWriters.FirstOrDefault(c => c.Key == fChar).Value;
 						if (sw == null)
 						{
 							sw = new StreamWriter($"{directory.FullName}\\{fChar}", true, FileEncoding);
-							sws.Add(fChar, sw);
+							streamWriters.Add(fChar, sw);
 						}
 
 						sw.WriteLine(line);
@@ -214,52 +213,12 @@ namespace wp.dll.lib32.textWork
 			OnNewEvent($"Source file [{fileInfo.Name}] delete");
 			fileInfo.Delete();
 
-			foreach (var sw in sws.Values)
+			foreach (var sw in streamWriters.Values)
 			{
 				sw.Close();
 			}
 		}
 
 		private void OnNewEvent(string info) => NewEvent?.Invoke(info);
-	}
-
-	public struct DiffResult
-	{
-		public DiffFile DiffFile { get; }
-		public string   Line     { get; }
-
-		public DiffResult(DiffFile diffFile, string line)
-		{
-			DiffFile = diffFile;
-			Line     = line;
-		}
-	}
-
-	public enum DiffFile
-	{
-		A,
-		B
-	}
-
-	internal static class Extentions
-	{
-		internal static string GetHash(this string str, Encoding sourceFileEncoding) => new MD5CryptoServiceProvider().ComputeHash(sourceFileEncoding.GetBytes(str)).Aggregate(string.Empty, (current, b) => current + b.ToString("x2"));
-
-		internal static string ToFileName(this string input, string replace = null) =>
-				input
-						.Replace("\\", replace   ?? string.Empty)
-						.Replace("/", replace    ?? string.Empty)
-						.Replace(":", replace    ?? string.Empty)
-						.Replace("*", replace    ?? string.Empty)
-						.Replace("?", replace    ?? string.Empty)
-						.Replace("<", replace    ?? string.Empty)
-						.Replace(">", replace    ?? string.Empty)
-						.Replace("|", replace    ?? string.Empty)
-						.Replace(".", replace    ?? string.Empty)
-						.Replace("\r\n", replace ?? " ")
-						.Replace("\r", replace   ?? " ")
-						.Replace("\n", replace   ?? " ")
-						.Replace("\t", replace   ?? " ")
-						.Trim();
 	}
 }
