@@ -6,219 +6,228 @@ using System.Text;
 
 namespace wp.dll.lib32.textWork
 {
-	public sealed class DiffTextFiles
-	{
-		private FileInfo FileA        { get; }
-		private FileInfo FileB        { get; }
-		private Encoding FileEncoding { get; }
-        public decimal FileALinesCount { get; private set; }
-        public decimal FileBLinesCount { get; private set; }
+    public sealed class DiffTextFiles
+    {
+        private FileInfo FileA           { get; }
+        private FileInfo FileB           { get; }
+        private Encoding FileEncoding    { get; }
+        public  decimal  FileALinesCount { get; private set; }
+        public  decimal  FileBLinesCount { get; private set; }
 
-        private          int           _depth;
+        private int _depth;
 
-		private readonly DirectoryInfo _tempDirectory;
-		private readonly DirectoryInfo _tempDirectoryA;
-		private readonly DirectoryInfo _tempDirectoryB;
+        private readonly DirectoryInfo _tempDirectory;
+        private readonly DirectoryInfo _tempDirectoryA;
+        private readonly DirectoryInfo _tempDirectoryB;
 
-		public event DifferenceEventHandler NewEvent;
+        public event DifferenceEventHandler NewEvent;
 
-		public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo tempDirectory = null, Encoding fileEncoding = null)
-		{
-			FileA         = fileA;
-			FileB         = fileB;
-			_tempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
-			FileEncoding  = fileEncoding  ?? Encoding.UTF8;
-			_depth         = int.MaxValue;
+        public DiffTextFiles(FileInfo fileA, FileInfo fileB, DirectoryInfo tempDirectory = null, Encoding fileEncoding = null)
+        {
+            FileA          = fileA;
+            FileB          = fileB;
+            _tempDirectory = tempDirectory ?? new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.Templates));
+            FileEncoding   = fileEncoding  ?? Encoding.UTF8;
+            _depth         = int.MaxValue;
 
-			OnNewEvent($"TempDirectory={_tempDirectory.FullName}");
+            OnNewEvent($"TempDirectory={_tempDirectory.FullName}");
 
-			var tempDirectoryName = DateTime.Now.Ticks.ToString();
+            var tempDirectoryName = DateTime.Now.Ticks.ToString();
 
-			_tempDirectoryA = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#0");
-			OnNewEvent($"TempDirectoryA={_tempDirectoryA.FullName}");
+            _tempDirectoryA = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#0");
+            OnNewEvent($"TempDirectoryA={_tempDirectoryA.FullName}");
 
-			_tempDirectoryB = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#1");
-			OnNewEvent($"TempDirectoryB={_tempDirectoryB.FullName}");
-		}
+            _tempDirectoryB = new DirectoryInfo($"{_tempDirectory.FullName}\\wp.lib32.textwork#{tempDirectoryName}#1");
+            OnNewEvent($"TempDirectoryB={_tempDirectoryB.FullName}");
+        }
 
-		public IEnumerable<DiffResult> Work()
-		{
-			OnNewEvent("Work started");
+        public IEnumerable<DiffResult> Work()
+        {
+            OnNewEvent("Work started");
 
-			if (!_tempDirectory.Exists)
-			{
-				_tempDirectory.Create();
-				OnNewEvent("Temp directory created");
-			}
-
-			if (!_tempDirectoryA.Exists)
-			{
-				_tempDirectoryA.Create();
-				OnNewEvent("TempDirectoryA directory created");
-			}
-
-			if (!_tempDirectoryB.Exists)
-			{
-				_tempDirectoryB.Create();
-				OnNewEvent("TempDirectoryB directory created");
-			}
-
-			FileA.CopyTo($"{_tempDirectoryA.FullName}\\{FileA.Name}", true);
-			OnNewEvent($"FileA [{FileA.Name}] copied to TempDirectoryA");
-
-			FileB.CopyTo($"{_tempDirectoryB.FullName}\\{FileB.Name}", true);
-			OnNewEvent($"FileB [{FileB.Name}] copied to TempDirectoryB");
-
-			for (var i = 1; i < _depth; i++)
-			{
-				_depth = int.MaxValue;
-				GetFilesDifference(_tempDirectoryA, _tempDirectoryB, i);
-				if (_tempDirectoryA.GetFiles().Length == 0 && _tempDirectoryB.GetFiles().Length == 0)
-				{
-					break;
-				}
-			}
-
-			var resultList = new List<DiffResult>();
-
-			OnNewEvent("Merge results \"in A not B\"");
-			GetResultList(_tempDirectoryA, DiffFile.A, ref resultList);
-
-			OnNewEvent("Merge results \"in B not A\"");
-			GetResultList(_tempDirectoryB, DiffFile.B, ref resultList);
-
-			_tempDirectoryA.Delete(true);
-			OnNewEvent("TempDirectoryA directory deleted");
-			_tempDirectoryB.Delete(true);
-			OnNewEvent("TempDirectoryB directory deleted");
-
-			if (_tempDirectory.FullName != Environment.GetFolderPath(Environment.SpecialFolder.Templates))
-			{
-				_tempDirectory.Delete(true);
-				OnNewEvent("TempDirectory directory deleted");
-			}
-
-			return resultList;
-		}
-
-		private void GetResultList(DirectoryInfo directoryInfo, DiffFile diffFile, ref List<DiffResult> list)
-		{
-			foreach (var file in directoryInfo.GetFiles())
-			{
-				using (var streamReader = new StreamReader(file.FullName, FileEncoding))
-				{
-					string line;
-					while ((line = streamReader.ReadLine()) != null)
-					{
-						if (line.Length != 0)
-						{
-							list.Add(new DiffResult(diffFile, line));
-						}
-					}
-
-					streamReader.Close();
-				}
-			}
-		}
-
-		private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
-		{
-			OnNewEvent("Split files in tempDirectoryA");
-			foreach (var file in dir0.GetFiles())
+            if (!_tempDirectory.Exists)
             {
-                Split_Work(file, dir0, depth, out decimal linesCount);
+                _tempDirectory.Create();
+                OnNewEvent("Temp directory created");
+            }
+
+            if (!_tempDirectoryA.Exists)
+            {
+                _tempDirectoryA.Create();
+                OnNewEvent("TempDirectoryA directory created");
+            }
+
+            if (!_tempDirectoryB.Exists)
+            {
+                _tempDirectoryB.Create();
+                OnNewEvent("TempDirectoryB directory created");
+            }
+
+            FileA.CopyTo($"{_tempDirectoryA.FullName}\\{FileA.Name}", true);
+            OnNewEvent($"FileA [{FileA.Name}] copied to TempDirectoryA");
+
+            FileB.CopyTo($"{_tempDirectoryB.FullName}\\{FileB.Name}", true);
+            OnNewEvent($"FileB [{FileB.Name}] copied to TempDirectoryB");
+
+            for (var i = 1; i < _depth; i++)
+            {
+                _depth = int.MaxValue;
+                GetFilesDifference(_tempDirectoryA, _tempDirectoryB, i);
+                if (_tempDirectoryA.GetFiles().Length == 0 && _tempDirectoryB.GetFiles().Length == 0)
+                {
+                    break;
+                }
+            }
+
+            var resultList = new List<DiffResult>();
+
+            OnNewEvent("Merge results \"in A not B\"");
+            GetResultList(_tempDirectoryA, DiffFile.A, ref resultList);
+
+            OnNewEvent("Merge results \"in B not A\"");
+            GetResultList(_tempDirectoryB, DiffFile.B, ref resultList);
+
+            _tempDirectoryA.Delete(true);
+            OnNewEvent("TempDirectoryA directory deleted");
+            _tempDirectoryB.Delete(true);
+            OnNewEvent("TempDirectoryB directory deleted");
+
+            if (_tempDirectory.FullName != Environment.GetFolderPath(Environment.SpecialFolder.Templates))
+            {
+                _tempDirectory.Delete(true);
+                OnNewEvent("TempDirectory directory deleted");
+            }
+
+            return resultList;
+        }
+
+        private void GetResultList(DirectoryInfo directoryInfo, DiffFile diffFile, ref List<DiffResult> list)
+        {
+            foreach (var file in directoryInfo.GetFiles())
+            {
+                using (var streamReader = new StreamReader(file.FullName, FileEncoding))
+                {
+                    string line;
+                    while ((line = streamReader.ReadLine()) != null)
+                    {
+                        if (line.Length != 0)
+                        {
+                            list.Add(new DiffResult(diffFile, line));
+                        }
+                    }
+
+                    streamReader.Close();
+                }
+            }
+        }
+
+        private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
+        {
+            OnNewEvent("Split files in tempDirectoryA");
+            foreach (var file in dir0.GetFiles())
+            {
+                Split_Work(file, dir0, depth, out var linesCount);
                 FileALinesCount = linesCount > FileALinesCount ? linesCount : FileALinesCount;
             }
 
-			OnNewEvent("Split files in tempDirectoryB");
-			foreach (var file in dir1.GetFiles())
+            OnNewEvent("Split files in tempDirectoryB");
+            foreach (var file in dir1.GetFiles())
             {
-                Split_Work(file, dir1, depth, out decimal linesCount);
+                Split_Work(file, dir1, depth, out var linesCount);
                 FileBLinesCount = linesCount > FileBLinesCount ? linesCount : FileBLinesCount;
             }
 
-			Revize(dir0, dir1);
-		}
+            Revize(dir0, dir1);
+        }
 
-		private void Revize(DirectoryInfo dir0, DirectoryInfo dir1)
-		{
-			var files0 = dir0.GetFiles();
-			var files1 = dir1.GetFiles();
+        private void Revize(DirectoryInfo dir0, DirectoryInfo dir1)
+        {
+            var files0 = dir0.GetFiles().Where(c=>!c.Name.Contains(".0")).ToList();
+            var files1 = dir1.GetFiles().Where(c=>!c.Name.Contains(".0")).ToList();
 
-			OnNewEvent($"Files count in temp directories: A={files0.Length}; B={files1.Length}");
+            OnNewEvent($"Files count in temp directories: A={files0.Count}; B={files1.Count}");
 
-			if (files0.Length != 0 && files1.Length != 0)
-			{
-				foreach (var fileInfo0 in files0)
-				{
-					OnNewEvent($"Search second file for [{fileInfo0.Name}]");
-					var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
-					if (fileInfo1 != null)
-					{
-						var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
-						var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
-						if (hashA == hashB)
-						{
-							fileInfo0.Delete();
-							fileInfo1.Delete();
-							OnNewEvent("=> Files equlas, deleted");
-						}
-						else
-						{
-							OnNewEvent("=> Files not equal, skip");
-						}
-					}
-					else
-					{
-						OnNewEvent("=X Not found");
-					}
-				}
-			}
-		}
+            if (files0.Count != 0 && files1.Count != 0)
+            {
+                foreach (var fileInfo0 in files0)
+                {
+                    OnNewEvent($"Search second file for [{fileInfo0.Name}]");
+                    var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
+                    if (fileInfo1 != null)
+                    {
+                        var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
+                        var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
+                        if (hashA == hashB)
+                        {
+                            fileInfo0.Delete();
+                            fileInfo1.Delete();
+                            OnNewEvent("=> Files equlas, deleted");
+                        }
+                        else
+                        {
+                            OnNewEvent("=> Files not equal, skip");
+                        }
+                    }
+                    else
+                    {
+                        OnNewEvent("=X Not found");
+                    }
+                }
+            }
+        }
 
-		private void Split_Work(FileSystemInfo fileInfo, FileSystemInfo directory, int depth, out decimal linesCount)
-		{
-			OnNewEvent($"* Split file [{fileInfo.Name}][{depth}]");
+        private void Split_Work(FileSystemInfo fileInfo, DirectoryInfo directory, int depth, out decimal linesCount)
+        {
+            OnNewEvent($"* Split file [{fileInfo.Name}][{depth}]");
 
-			var streamWriters = new Dictionary<string, StreamWriter>();
+            var streamWriters = new List<StreamWriterExt>();
 
-			using (var sr = new StreamReader(fileInfo.FullName, FileEncoding))
+            using (var sr = new StreamReader(fileInfo.FullName, FileEncoding))
             {
                 linesCount = 0;
                 string line;
-				while ((line = sr.ReadLine()) != null)
-				{
-					if (line.Length != 0)
+                while ((line = sr.ReadLine()) != null)
+                {
+                    if (line.Length != 0)
                     {
                         linesCount++;
                         if (line.Length < _depth)
-						{
-							_depth = line.Length;
-						}
+                        {
+                            _depth = line.Length;
+                        }
 
-						var fChar = line.Substring(0, depth).Replace(" ", "_").ToFileName("_");
+                        var name = line.Substring(0, depth).Replace(" ", "_").ToFileName("_");
+                        streamWriters.GetOrCreate(name, directory, FileEncoding).WriteLine(line);
+                    }
+                }
+                sr.Close();
+            }
 
-						var sw = streamWriters.FirstOrDefault(c => c.Key == fChar).Value;
-						if (sw == null)
-						{
-							sw = new StreamWriter($"{directory.FullName}\\{fChar}", true, FileEncoding);
-							streamWriters.Add(fChar, sw);
-						}
+            streamWriters.CloseAll();
+            OnNewEvent($"Source file [{fileInfo.Name}] delete");
+            fileInfo.Delete();
 
-						sw.WriteLine(line);
-					}
-				}
-			}
+        }
 
-			OnNewEvent($"Source file [{fileInfo.Name}] delete");
-			fileInfo.Delete();
+        private void OnNewEvent(string info) => NewEvent?.Invoke(info);
+    }
 
-			foreach (var sw in streamWriters.Values)
-			{
-				sw.Close();
-			}
-		}
+    internal class StreamWriterExt
+    {
+        internal FileInfo FileInfo    { get; }
+        internal StreamWriter   StreamWriter { get; }
+        internal decimal        Counter      { get; private set; }
 
-		private void OnNewEvent(string info) => NewEvent?.Invoke(info);
-	}
+        public StreamWriterExt(FileInfo fileInfo, Encoding encoding)
+        {
+            FileInfo = fileInfo;
+            StreamWriter = new StreamWriter(fileInfo.FullName, true, encoding);
+        }
+
+        internal void WriteLine(string line)
+        {
+            StreamWriter.WriteLine(line);
+            Counter += 1;
+        }
+    }
 }
