@@ -124,14 +124,14 @@ namespace wp.dll.lib32.textWork
         private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
         {
             OnNewEvent("Split files in tempDirectoryA");
-            foreach (var file in dir0.GetFiles())
+            foreach (var file in dir0.GetFiles().Where(c=>!c.Name.EndsWith(".0") && !c.Name.EndsWith(".1")))
             {
                 Split_Work(file, dir0, depth, out var linesCount);
                 FileALinesCount = linesCount > FileALinesCount ? linesCount : FileALinesCount;
             }
 
             OnNewEvent("Split files in tempDirectoryB");
-            foreach (var file in dir1.GetFiles())
+            foreach (var file in dir1.GetFiles().Where(c => !c.Name.EndsWith(".0") && !c.Name.EndsWith(".1")))
             {
                 Split_Work(file, dir1, depth, out var linesCount);
                 FileBLinesCount = linesCount > FileBLinesCount ? linesCount : FileBLinesCount;
@@ -142,8 +142,8 @@ namespace wp.dll.lib32.textWork
 
         private void Revize(DirectoryInfo dir0, DirectoryInfo dir1)
         {
-            var files0 = dir0.GetFiles().Where(c=>!c.Name.Contains(".0")).ToList();
-            var files1 = dir1.GetFiles().Where(c=>!c.Name.Contains(".0")).ToList();
+            var files0 = dir0.GetFiles().Where(c=>!c.Name.EndsWith(".1")).ToList();
+            var files1 = dir1.GetFiles().Where(c=>!c.Name.EndsWith(".1")).ToList();
 
             OnNewEvent($"Files count in temp directories: A={files0.Count}; B={files1.Count}");
 
@@ -166,11 +166,19 @@ namespace wp.dll.lib32.textWork
                         else
                         {
                             OnNewEvent("=> Files not equal, skip");
+                            if (fileInfo0.Name.EndsWith(".0"))
+                            {
+                                fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                            }
                         }
                     }
                     else
                     {
                         OnNewEvent("=X Not found");
+                        if (fileInfo0.Name.EndsWith(".0"))
+                        {
+                            fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                        }
                     }
                 }
             }
