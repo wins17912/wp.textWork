@@ -161,23 +161,25 @@ namespace wp.dll.lib32.textWork
                         {
                             fileInfo0.Delete();
                             fileInfo1.Delete();
-                            OnNewEvent("=> Files equlas, deleted");
+                            OnNewEvent("Files equlas, deleted");
                         }
                         else
                         {
-                            OnNewEvent("=> Files not equal, skip");
+                            OnNewEvent("Files not equal, skip");
                             if (fileInfo0.Name.EndsWith(".0"))
                             {
                                 fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                                OnNewEvent("File marked to skip");
                             }
                         }
                     }
                     else
                     {
-                        OnNewEvent("=X Not found");
+                        OnNewEvent("Not found");
                         if (fileInfo0.Name.EndsWith(".0"))
                         {
                             fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                            OnNewEvent("File marked to skip");
                         }
                     }
                 }
@@ -226,7 +228,7 @@ namespace wp.dll.lib32.textWork
         internal StreamWriter   StreamWriter { get; }
         internal decimal        Counter      { get; private set; }
 
-        public StreamWriterExt(FileInfo fileInfo, Encoding encoding)
+        internal StreamWriterExt(FileInfo fileInfo, Encoding encoding)
         {
             FileInfo = fileInfo;
             StreamWriter = new StreamWriter(fileInfo.FullName, true, encoding);

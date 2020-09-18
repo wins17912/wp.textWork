@@ -46,7 +46,7 @@ namespace wp.dll.lib32.textWork
                 streamWriterExt.StreamWriter.Close();
                 if (streamWriterExt.Counter == 1)
                 {
-                    streamWriterExt.FileInfo.MoveTo($"{streamWriterExt.FileInfo.FullName}.0");
+                    streamWriterExt.FileInfo.MoveTo($"{File.ReadAllText(streamWriterExt.FileInfo.FullName)}.0");
                 }
             }
         }
