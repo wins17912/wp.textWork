@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Wins Programs")]
 [assembly: AssemblyProduct("wp.dll.lib32.textWork")]
-[assembly: AssemblyCopyright("Голубцов А., Пермь, 2020")]
+[assembly: AssemblyCopyright("Голубцов А., Самара, 2020-2022")]
 [assembly: AssemblyTrademark("x86")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // Можно задать все значения или принять номер сборки и номер редакции по умолчанию.
 // используя "*", как показано ниже:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.2")]
-[assembly: AssemblyFileVersion("0.2.1356.1508")]
+[assembly: AssemblyVersion("0.3")]
+[assembly: AssemblyFileVersion("0.3.2010.1652")]
