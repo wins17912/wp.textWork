@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace wp.dll.lib32.textWork
 {
@@ -49,6 +50,20 @@ namespace wp.dll.lib32.textWork
             {
                 _tempDirectory.Create();
                 OnNewEvent("Temp directory created");
+            }
+            else
+            {
+                foreach (var directory in _tempDirectory.GetDirectories())
+                {
+                    try
+                    {
+                        directory.Delete(true);
+                    }
+                    catch 
+                    {
+                        
+                    }
+                }
             }
 
             if (!_tempDirectoryA.Exists)
@@ -124,7 +139,7 @@ namespace wp.dll.lib32.textWork
         private void GetFilesDifference(DirectoryInfo dir0, DirectoryInfo dir1, int depth)
         {
             OnNewEvent("Split files in tempDirectoryA");
-            foreach (var file in dir0.GetFiles().Where(c=>!c.Name.EndsWith(".0") && !c.Name.EndsWith(".1")))
+            foreach (var file in dir0.GetFiles().Where(c => !c.Name.EndsWith(".0") && !c.Name.EndsWith(".1")))
             {
                 Split_Work(file, dir0, depth, out var linesCount);
                 FileALinesCount = linesCount > FileALinesCount ? linesCount : FileALinesCount;
@@ -142,8 +157,8 @@ namespace wp.dll.lib32.textWork
 
         private void Revize(DirectoryInfo dir0, DirectoryInfo dir1)
         {
-            var files0 = dir0.GetFiles().Where(c=>!c.Name.EndsWith(".1")).ToList();
-            var files1 = dir1.GetFiles().Where(c=>!c.Name.EndsWith(".1")).ToList();
+            var files0 = dir0.GetFiles().Where(c => !c.Name.EndsWith(".1")).ToList();
+            var files1 = dir1.GetFiles().Where(c => !c.Name.EndsWith(".1")).ToList();
 
             OnNewEvent($"Files count in temp directories: A={files0.Count}; B={files1.Count}");
 
@@ -155,12 +170,13 @@ namespace wp.dll.lib32.textWork
                     var fileInfo1 = files1.FirstOrDefault(c => c.Name == fileInfo0.Name);
                     if (fileInfo1 != null)
                     {
-                        var hashA = File.ReadAllText(fileInfo0.FullName, FileEncoding).GetHash(FileEncoding);
-                        var hashB = File.ReadAllText(fileInfo1.FullName, FileEncoding).GetHash(FileEncoding);
+                        var hashA = SafeGetHash(fileInfo0);
+                        var hashB = SafeGetHash(fileInfo1);
                         if (hashA == hashB)
                         {
-                            fileInfo0.Delete();
-                            fileInfo1.Delete();
+                            SafeDelete(fileInfo0);
+                            SafeDelete(fileInfo1);
+
                             OnNewEvent("Files equlas, deleted");
                         }
                         else
@@ -168,7 +184,7 @@ namespace wp.dll.lib32.textWork
                             OnNewEvent("Files not equal, skip");
                             if (fileInfo0.Name.EndsWith(".0"))
                             {
-                                fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                                SafeRenameFile(fileInfo0);
                                 OnNewEvent("File marked to skip");
                             }
                         }
@@ -178,11 +194,15 @@ namespace wp.dll.lib32.textWork
                         OnNewEvent("Not found");
                         if (fileInfo0.Name.EndsWith(".0"))
                         {
-                            fileInfo0.MoveTo($"{fileInfo0.DirectoryName}\\{fileInfo0.Name.Replace(".0", ".1")}");
+                            SafeRenameFile(fileInfo0);
                             OnNewEvent("File marked to skip");
                         }
                     }
                 }
+            }
+            else
+            {
+                _depth = 1;
             }
         }
 
@@ -210,13 +230,64 @@ namespace wp.dll.lib32.textWork
                         streamWriters.GetOrCreate(name, directory, FileEncoding).WriteLine(line);
                     }
                 }
+
                 sr.Close();
             }
 
             streamWriters.CloseAll();
             OnNewEvent($"Source file [{fileInfo.Name}] delete");
             fileInfo.Delete();
+        }
 
+        private void SafeDelete(FileInfo file)
+        {
+            while (file.Exists)
+            {
+                try
+                {
+                    file.Delete();
+                    file.Refresh();
+                }
+                catch 
+                {
+                    Thread.Sleep(100);
+                }
+            }
+        }
+
+        private string SafeGetHash(FileInfo file)
+        {
+            string hash = null;
+
+            while (hash == null)
+            {
+                try
+                {
+                    hash = File.ReadAllText(file.FullName, FileEncoding).GetHash(FileEncoding);
+                }
+                catch 
+                {
+                    Thread.Sleep(100);
+                }
+            }
+
+            return hash;
+        }
+
+        private void SafeRenameFile(FileInfo file)
+        {
+            while (true)
+            {
+                try
+                {
+                    file.MoveTo($"{file.DirectoryName}\\{file.Name.Replace(".0", ".1")}");
+                    break;
+                }
+                catch
+                {
+                    Thread.Sleep(100);
+                }
+            }
         }
 
         private void OnNewEvent(string info) => NewEvent?.Invoke(info);
@@ -224,13 +295,13 @@ namespace wp.dll.lib32.textWork
 
     internal class StreamWriterExt
     {
-        internal FileInfo FileInfo    { get; }
-        internal StreamWriter   StreamWriter { get; }
-        internal decimal        Counter      { get; private set; }
+        internal FileInfo     FileInfo     { get; }
+        internal StreamWriter StreamWriter { get; }
+        internal decimal      Counter      { get; private set; }
 
         internal StreamWriterExt(FileInfo fileInfo, Encoding encoding)
         {
-            FileInfo = fileInfo;
+            FileInfo     = fileInfo;
             StreamWriter = new StreamWriter(fileInfo.FullName, true, encoding);
         }
 

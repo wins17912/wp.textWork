@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace wp.dll.lib32.textWork
 {
@@ -35,7 +36,7 @@ namespace wp.dll.lib32.textWork
                 ext = new StreamWriterExt(new FileInfo($"{directory.FullName}\\{name}"), encoding);
                 list.Add(ext);
             }
-            
+
             return ext;
         }
 
@@ -46,7 +47,7 @@ namespace wp.dll.lib32.textWork
                 streamWriterExt.StreamWriter.Close();
                 if (streamWriterExt.Counter == 1)
                 {
-                    streamWriterExt.FileInfo.MoveTo($"{File.ReadAllText(streamWriterExt.FileInfo.FullName)}.0");
+                    streamWriterExt.FileInfo.MoveTo($"{streamWriterExt.FileInfo.DirectoryName}\\{File.ReadAllText(streamWriterExt.FileInfo.FullName).ToFileName("_")}.0");
                 }
             }
         }
