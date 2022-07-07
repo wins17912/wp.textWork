@@ -292,23 +292,4 @@ namespace wp.dll.lib32.textWork
 
         private void OnNewEvent(string info) => NewEvent?.Invoke(info);
     }
-
-    internal class StreamWriterExt
-    {
-        internal FileInfo     FileInfo     { get; }
-        internal StreamWriter StreamWriter { get; }
-        internal decimal      Counter      { get; private set; }
-
-        internal StreamWriterExt(FileInfo fileInfo, Encoding encoding)
-        {
-            FileInfo     = fileInfo;
-            StreamWriter = new StreamWriter(fileInfo.FullName, true, encoding);
-        }
-
-        internal void WriteLine(string line)
-        {
-            StreamWriter.WriteLine(line);
-            Counter += 1;
-        }
-    }
 }
